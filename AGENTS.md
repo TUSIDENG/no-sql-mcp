@@ -7,6 +7,13 @@
 - All other documentation files in this repository MUST be written in English.
 - All code comments, commit messages, and identifiers MUST be in English.
 
+## Line ending requirements
+
+- All text files in this repository MUST use LF (`\n`) line endings; CRLF
+  (`\r\n`) is not allowed.
+- This is enforced by `.gitattributes` (`* text=auto eol=lf`). Run
+  `git add --renormalize .` after adding the rules to normalize the index.
+
 ## Data source connection requirements
 
 - Elasticsearch, Redis, and Kafka MUST support both single-instance and
