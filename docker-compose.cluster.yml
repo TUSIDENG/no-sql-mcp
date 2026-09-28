@@ -1,0 +1,251 @@
+# Cluster services for local development and testing.
+# Starts a 3-node Elasticsearch cluster, a 6-node Redis Cluster
+# (3 masters + 3 replicas), and a 3-broker Kafka (KRaft) cluster.
+#
+# Start:   docker compose -f docker-compose.cluster.yml up -d
+# Stop:    docker compose -f docker-compose.cluster.yml down
+# Cleanup: docker compose -f docker-compose.cluster.yml down -v
+#
+# Notes:
+# - Linux hosts may need to set REDIS_CLUSTER_ANNOUNCE_IP to a host IP that
+#   is reachable from inside the containers, e.g.
+#   REDIS_CLUSTER_ANNOUNCE_IP=192.168.1.10 docker compose ... up -d
+# - Elasticsearch requires vm.max_map_count=262144 on the host (Linux).
+
+name: nosql-mcp-cluster
+
+x-redis-node: &redis-node
+  image: redis:7-alpine
+  command:
+    - sh
+    - -c
+    - |
+      exec redis-server \
+        --requirepass ${REDIS_PASSWORD:-changeme} \
+        --masterauth ${REDIS_PASSWORD:-changeme} \
+        --appendonly yes \
+        --cluster-enabled yes \
+        --cluster-config-file nodes.conf \
+        --cluster-node-timeout 5000 \
+        --cluster-announce-ip $${REDIS_CLUSTER_ANNOUNCE_IP:-host.docker.internal} \
+        --cluster-announce-port $${REDIS_NODE_PORT} \
+        --cluster-announce-bus-port $${REDIS_BUS_PORT}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  healthcheck:
+    test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+
+x-kafka-node: &kafka-node
+  image: apache/kafka:3.8.0
+  environment:
+    - KAFKA_PROCESS_ROLES=broker,controller
+    - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+    - KAFKA_LISTENERS=INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+    - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+    - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
+    - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+    - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+    - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=2
+    - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+    - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+  healthcheck:
+    test:
+      [
+        "CMD-SHELL",
+        "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1",
+      ]
+    interval: 10s
+    timeout: 5s
+    retries: 12
+
+services:
+  # ---------- Elasticsearch: 3-node cluster ----------
+  es-1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    environment:
+      - node.name=es-1
+      - cluster.name=es-cluster
+      - discovery.seed_hosts=es-1,es-2,es-3
+      - cluster.initial_master_nodes=es-1,es-2,es-3
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-1-data:/usr/share/elasticsearch/data
+
+  es-2:
+    image: docker.elastic.co/elasticsearch/8.15.0
+    environment:
+      - node.name=es-2
+      - cluster.name=es-cluster
+      - discovery.seed_hosts=es-1,es-2,es-3
+      - cluster.initial_master_nodes=es-1,es-2,es-3
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9201:9200"
+    volumes:
+      - es-2-data:/usr/share/elasticsearch/data
+
+  es-3:
+    image: docker.elastic.co/elasticsearch/8.15.0
+    environment:
+      - node.name=es-3
+      - cluster.name=es-cluster
+      - discovery.seed_hosts=es-1,es-2,es-3
+      - cluster.initial_master_nodes=es-1,es-2,es-3
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9202:9200"
+    volumes:
+      - es-3-data:/usr/share/elasticsearch/data
+
+  # ---------- Redis Cluster: 3 masters + 3 replicas ----------
+  redis-1:
+    <<: *redis-node
+    environment:
+      - REDIS_NODE_PORT=7000
+      - REDIS_BUS_PORT=17000
+    ports:
+      - "7000:7000"
+      - "17000:17000"
+    volumes:
+      - redis-1-data:/data
+
+  redis-2:
+    <<: *redis-node
+    environment:
+      - REDIS_NODE_PORT=7001
+      - REDIS_BUS_PORT=17001
+    ports:
+      - "7001:7001"
+      - "17001:17001"
+    volumes:
+      - redis-2-data:/data
+
+  redis-3:
+    <<: *redis-node
+    environment:
+      - REDIS_NODE_PORT=7002
+      - REDIS_BUS_PORT=17002
+    ports:
+      - "7002:7002"
+      - "17002:17002"
+    volumes:
+      - redis-3-data:/data
+
+  redis-4:
+    <<: *redis-node
+    environment:
+      - REDIS_NODE_PORT=7003
+      - REDIS_BUS_PORT=17003
+    ports:
+      - "7003:7003"
+      - "17003:17003"
+    volumes:
+      - redis-4-data:/data
+
+  redis-5:
+    <<: *redis-node
+    environment:
+      - REDIS_NODE_PORT=7004
+      - REDIS_BUS_PORT=17004
+    ports:
+      - "7004:7004"
+      - "17004:17004"
+    volumes:
+      - redis-5-data:/data
+
+  redis-6:
+    <<: *redis-node
+    environment:
+      - REDIS_NODE_PORT=7005
+      - REDIS_BUS_PORT=17005
+    ports:
+      - "7005:7005"
+      - "17005:17005"
+    volumes:
+      - redis-6-data:/data
+
+  # One-shot job: waits for all nodes, then creates the Redis Cluster.
+  redis-cluster-init:
+    image: redis:7-alpine
+    depends_on:
+      redis-1:
+        condition: service_healthy
+      redis-2:
+        condition: service_healthy
+      redis-3:
+        condition: service_healthy
+      redis-4:
+        condition: service_healthy
+      redis-5:
+        condition: service_healthy
+      redis-6:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        HOST=${REDIS_CLUSTER_ANNOUNCE_IP:-host.docker.internal}
+        NODES="$${HOST}:7000 $${HOST}:7001 $${HOST}:7002 $${HOST}:7003 $${HOST}:7004 $${HOST}:7005"
+        for node in $$NODES; do
+          until redis-cli -h "$${node%%:*}" -p "$${node##*:}" -a ${REDIS_PASSWORD:-changeme} ping | grep -q PONG; do
+            echo "waiting for $$node"; sleep 2
+          done
+        done
+        echo yes | redis-cli -a ${REDIS_PASSWORD:-changeme} \
+          --cluster create $$NODES --cluster-replicas 1
+
+  # ---------- Kafka: 3 KRaft brokers ----------
+  kafka-1:
+    <<: *kafka-node
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka-1:19092,EXTERNAL://localhost:9092
+    ports:
+      - "9092:9092"
+
+  kafka-2:
+    <<: *kafka-node
+    environment:
+      - KAFKA_NODE_ID=2
+      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka-2:19092,EXTERNAL://localhost:9094
+    ports:
+      - "9094:9092"
+
+  kafka-3:
+    <<: *kafka-node
+    environment:
+      - KAFKA_NODE_ID=3
+      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka-3:19092,EXTERNAL://localhost:9096
+    ports:
+      - "9096:9092"
+
+volumes:
+  es-1-data:
+  es-2-data:
+  es-3-data:
+  redis-1-data:
+  redis-2-data:
+  redis-3-data:
+  redis-4-data:
+  redis-5-data:
+  redis-6-data:

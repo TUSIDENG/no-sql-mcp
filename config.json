@@ -1,0 +1,39 @@
+{
+  "sources": [
+    {
+      "id": "logs_es_local",
+      "type": "elasticsearch",
+      "version": "auto",
+      "deployment_mode": "single",
+      "addresses": ["http://localhost:9200"],
+      "username": "elastic",
+      "password": "${ES_PASSWORD}",
+      "default_index": "app-logs-*",
+      "read_only": true,
+      "max_docs": 200,
+      "query_timeout": 30,
+      "description": "Local Elasticsearch for log search"
+    },
+    {
+      "id": "cache_redis_local",
+      "type": "redis",
+      "addresses": ["redis://localhost:6379/0"],
+      "password": "${REDIS_PASSWORD}",
+      "db": 0,
+      "read_only": false,
+      "max_keys": 500,
+      "command_timeout": 5,
+      "description": "Local Redis cache"
+    },
+    {
+      "id": "events_kafka_local",
+      "type": "kafka",
+      "brokers": ["localhost:9092"],
+      "read_only": true,
+      "max_messages": 100,
+      "default_topic": "order.events",
+      "operation_timeout": 10,
+      "description": "Local Kafka event stream"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "sources": [
+    {
+      "id": "logs_es_local",
+      "type": "elasticsearch",
+      "deployment_mode": "single",
+      "addresses": ["http://localhost:9200"],
+      "read_only": true
+    },
+    {
+      "id": "cache_redis_local",
+      "type": "redis",
+      "addresses": ["redis://localhost:6379/0"],
+      "read_only": false
+    },
+    {
+      "id": "events_kafka_local",
+      "type": "kafka",
+      "brokers": ["localhost:9092"],
+      "read_only": true
+    }
+  ]
+}
