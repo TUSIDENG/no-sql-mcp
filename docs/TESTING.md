@@ -17,7 +17,7 @@
 | 测试层 | 是否依赖真实中间件 | 占比目标 | 执行者 |
 | --- | --- | --- | --- |
 | 单元测试（Unit） | 否（接口 mock / 内存 fake） | ~60% | 开发 + CI 全量 |
-| 集成测试（Integration） | 是（testcontainers / docker-compose） | ~30% | 开发可选 + CI |
+| 集成测试（Integration） | 是（testcontainers 自管容器 / 既有实例） | ~30% | 开发可选 + CI |
 | 端到端冒烟（E2E Smoke） | 是 + 真实 MCP 调用 | ~10% | CI 发布门禁 |
 | 契约/快照测试 | 否 | 贯穿 | CI |
 
@@ -27,75 +27,17 @@
 
 ## 二、测试环境
 
-### 2.1 docker-compose（`docker-compose.yml`，用于本地与 CI）
-
-```yaml
-services:
-  elasticsearch8:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=testpass123
-    ports: ["9200:9200"]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s -u elastic:testpass123 http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
-      interval: 5s
-      retries: 20
-
-  elasticsearch7:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.21
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=testpass123
-    ports: ["9201:9200"]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s -u elastic:testpass123 http://localhost:9200/_cluster/health | grep -q '\"status\"'"]
-      interval: 5s
-      retries: 20
-
-  redis:
-    image: redis:7.2-alpine
-    command: ["redis-server", "--requirepass", "testpass123"]
-    ports: ["6379:6379"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "testpass123", "ping"]
-      interval: 3s
-      retries: 20
-
-  kafka:
-    image: bitnami/kafka:3.7
-    environment:
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-    ports: ["9092:9092"]
-```
-
-启动 / 清理：
-
-```bash
-docker compose up -d
-docker compose ps                 # 等待 healthy
-docker compose down -v            # 清理数据卷
-```
-
-### 2.2 Testcontainers（推荐用于集成测试，自管生命周期）
+### 2.1 Testcontainers（集成测试，自管生命周期）
 
 - 库：`github.com/testcontainers/testcontainers-go` 及各 module
 - 每个集成测试包在 `TestMain` 中按需启动容器、读取随机映射端口、结束时自动销毁
-- CI 无 Docker 时，集成测试通过环境变量 `NOSQL_TEST_TARGET` 指向既有实例（compose 提供），二选一
+- 需要指定既有实例时，通过环境变量 `NOSQL_TEST_TARGET` 指向目标地址，集成测试不再依赖外部部署脚本
 
-### 2.3 测试配置
+### 2.2 测试配置
 
 `test/testdata/config.test.json` 使用 `${VAR}` 占位与测试专用弱口令，禁止复用真实凭据；敏感断言只验证"不泄漏"，不写入真实 secret。
 
-### 2.4 Makefile 目标
+### 2.3 Makefile 目标
 
 ```makefile
 test:            ## 运行全部单元测试（短模式）
@@ -104,8 +46,7 @@ test:            ## 运行全部单元测试（短模式）
 test-race:       ## 竞态检测
 	go test ./... -race -count=1
 
-test-live:       ## 集成测试（需 docker）
-	docker compose up -d
+test-live:       ## 集成测试（由 testcontainers 自管容器）
 	go test -tags=live ./... -count=1
 
 coverage:        ## 覆盖率报告
@@ -301,9 +242,82 @@ smoke:           ## 启动 server 并跑冒烟脚本
 
 ### 6.1 方式
 
-构建二进制 → docker-compose 起依赖 → 以 stdio 与 streamable HTTP 各跑一遍 → 通过 JSON-RPC 真实调用 MCP 协议。
+构建二进制 → 由 testcontainers 准备依赖（或指向既有实例）→ 通过 MCP 审查工具与 JSON-RPC 真实调用服务，分别覆盖 stdio 与 streamable HTTP 两种传输。
 
-### 6.2 必测脚本场景（`scripts/smoke.sh`）
+### 6.2 通过 MCP Inspector 审查验证
+
+[MCP Inspector](https://github.com/modelcontextprotocol/inspector) 是 MCP 官方的审查/调试工具（"MCP 版 Postman"），无需接入完整 AI 客户端即可浏览工具、查看请求/响应与 JSON-RPC 报文。运行需要 Node.js 22.19.0+，通过 `npx` 按需启动，无需安装。
+
+**Web UI（交互式审查）**
+
+```bash
+# Pass the command/args that start our Go binary (stdio). The "--" is required
+# because "--config" is also an Inspector flag; without it Inspector consumes it.
+ES_PASSWORD=changeme REDIS_PASSWORD=changeme \
+  npx @modelcontextprotocol/inspector ./bin/server.exe -- --config config.json --lazy-loading
+```
+
+```powershell
+# PowerShell: pass env via -e before the target command, and add "--" before the
+# server's own flags so Inspector does not interpret "--config" as its session flag.
+npx @modelcontextprotocol/inspector `
+  -e ES_PASSWORD=changeme -e REDIS_PASSWORD=changeme `
+  .\bin\server.exe -- --config config.json --lazy-loading
+```
+
+启动后打开终端输出的本地地址，在界面中依次：点击 **Connect** → **Tools / List Tools** 查看工具清单 → 选择工具、填写参数并 **Run**，同时在监控侧栏核对每一次 JSON-RPC 报文。streamable HTTP 模式则在 UI 中选择对应 Transport 并填入服务 URL。
+
+**CLI（可脚本化，用于 CI 与冒烟）**
+
+```bash
+# 仅握手探测：校验 serverInfo / protocolVersion / capabilities
+npx @modelcontextprotocol/inspector --cli ./bin/server.exe --config config.json --lazy-loading \
+  --method initialize
+
+# 列出全部工具并退出
+npx @modelcontextprotocol/inspector --cli ./bin/server.exe --config config.json --lazy-loading \
+  --method tools/list
+
+# 调用只读查询（参数以 JSON 原样传入）
+npx @modelcontextprotocol/inspector --cli ./bin/server.exe --config config.json --lazy-loading \
+  --method tools/call --tool-name es_search_logs_es_local \
+  --tool-args-json '{"indices":["t1_products"],"query_dsl":{"match_all":{}}}'
+
+# 在只读源上调用写入，应返回只读错误（配合退出码/输出断言）
+npx @modelcontextprotocol/inspector --cli ./bin/server.exe --config config.json --lazy-loading \
+  --method tools/call --tool-name es_index_logs_es_local \
+  --tool-args-json '{"index":"t1_products","document":{"name":"x"}}'
+```
+
+PowerShell 等价写法。注意 CLI 模式与 Web 模式的 `--` 分隔方向相反：**服务命令及其参数放在 `--` 之前，Inspector 自己的选项（`--method`、`-e` 等）放在 `--` 之后**；用反引号 `` ` `` 续行，JSON 参数用单引号原样传递。
+
+```powershell
+# 仅握手探测：校验 serverInfo / protocolVersion / capabilities
+npx @modelcontextprotocol/inspector --cli .\bin\server.exe --config config.json --lazy-loading `
+  -- --method initialize -e ES_PASSWORD=changeme -e REDIS_PASSWORD=changeme
+
+# 列出全部工具并退出
+npx @modelcontextprotocol/inspector --cli .\bin\server.exe --config config.json --lazy-loading `
+  -- --method tools/list -e ES_PASSWORD=changeme -e REDIS_PASSWORD=changeme
+
+# 调用只读查询（参数以 JSON 原样传入）
+npx @modelcontextprotocol/inspector --cli .\bin\server.exe --config config.json --lazy-loading `
+  -- --method tools/call --tool-name es_search_logs_es_local `
+     --tool-args-json '{"indices":["t1_products"],"query_dsl":{"match_all":{}}}' `
+     -e ES_PASSWORD=changeme -e REDIS_PASSWORD=changeme
+
+# 在只读源上调用写入，应返回只读错误（配合退出码/输出断言）
+npx @modelcontextprotocol/inspector --cli .\bin\server.exe --config config.json --lazy-loading `
+  -- --method tools/call --tool-name es_index_logs_es_local `
+     --tool-args-json '{"index":"t1_products","document":{"name":"x"}}' `
+     -e ES_PASSWORD=changeme -e REDIS_PASSWORD=changeme
+```
+
+> 兼容性说明（重要）：MCP Inspector CLI 在连接后默认还会发送一次 `logging/setLevel`，而本服务依赖的 cortex v1.0.5 未实现该方法，也没有暴露注册任意 JSON-RPC 方法的公开 API。该请求返回 `-32601 Method not found` 后 Inspector CLI 会整体中断并以非零码退出，因此**当前下列 CLI 命令仅作参数参考，无法拿到正常输出**。实际审查请使用上面的 **Web UI**（不强制该调用），或用直接的 JSON-RPC 请求验证；待后续升级/替换支持该方法的服务框架后，CLI 链路即可打通。
+
+审查要点：`initialize` 握手成功；`tools/list` 工具名/数量/inputSchema 与配置源一致；工具调用返回统一的 `content[].text`；只读源写入被拒绝；错误响应与报文中不含密码或带凭据的连接串。
+
+### 6.3 必测脚本场景（`scripts/smoke.sh`）
 
 1. `tools/list`：断言返回的工具名、数量与配置源精确匹配（含命名前缀）。
 2. `list_sources`：返回三个源 id，且响应中无密码。
@@ -313,11 +327,11 @@ smoke:           ## 启动 server 并跑冒烟脚本
 6. 鉴权：streamable 模式无 Bearer / 错误 Bearer 返回 401；正确 Bearer 成功。
 7. `/health`：返回 200、源数量与各源状态正确。
 
-### 6.3 发布门禁
+### 6.4 发布门禁
 
 - 单元 + race + lint 全绿
 - 集成测试（三源；ES 覆盖 7.17 / 8.x 双版本）全绿
-- 冒烟脚本全绿；工具数量/名称快照无意外变化
+- 冒烟脚本与 MCP Inspector CLI 审查全绿；工具数量/名称快照无意外变化
 - 覆盖率门槛：核心 usecase / guard / registry 行覆盖率 ≥ 85%，护栏分类逻辑要求分支覆盖
 
 ---
@@ -361,8 +375,8 @@ smoke:           ## 启动 server 并跑冒烟脚本
 ## 十、CI 流水线建议（`.github/workflows`）
 
 1. `lint + unit (-race)`：PR 必跑，无需 Docker。
-2. `integration`：起 docker-compose（或 testcontainers），跑 `-tags=live`；ES 用例对 **7.17 与 8.x 两个镜像并行 job** 各跑一遍，Redis/Kafka 各一个 job。
-3. `smoke + build image`：合并主干后运行，作为发布门禁。
+2. `integration`：由 testcontainers 自管容器，跑 `-tags=live`；ES 用例对 **7.17 与 8.x 两个镜像并行 job** 各跑一遍，Redis/Kafka 各一个 job。
+3. `smoke + build image`：合并主干后运行，通过 MCP Inspector Web UI 或直接 JSON-RPC 完成协议审查（待服务框架支持 `logging/setLevel` 后再切到 Inspector CLI），作为发布门禁。
 4. 失败产物：上传 coverage.out、server 日志、容器日志、冒烟请求/响应，便于定位。
 
 ---
