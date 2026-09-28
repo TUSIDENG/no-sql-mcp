@@ -19,7 +19,7 @@ import (
 func main() {
 	configPath := flag.String("config", "config.json", "path to the data source configuration file")
 	transport := flag.String("transport", "stdio", "transport mode: stdio | sse")
-	address := flag.String("address", ":8080", "listen address for the sse transport")
+	address := flag.String("address", ":9091", "listen address for the sse transport")
 	lazyLoading := flag.Bool("lazy-loading", false, "connect to sources on first use instead of at startup")
 	allowDangerous := flag.Bool("allow-dangerous", false, "permit dangerous cluster-level operations (disabled by default)")
 	flag.Parse()
