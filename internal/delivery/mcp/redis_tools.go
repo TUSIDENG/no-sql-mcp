@@ -17,8 +17,27 @@ import (
 // redisToolCount is the number of tools registered per Redis source.
 const redisToolCount = 6
 
-// registerRedisTools registers the 6 Redis tools for one source.
-func (r *ToolRegistry) registerRedisTools(ctx context.Context, mcpServer *server.MCPServer, sourceID string, readOnly bool) error {
+// registerRedisTools registers the Redis tools for every configured Redis
+// source. It is self-contained, mirroring registerESTools.
+func (r *ToolRegistry) registerRedisTools(ctx context.Context, mcpServer *server.MCPServer) error {
+	sources, err := r.sourceUC.ListSources()
+	if err != nil {
+		return fmt.Errorf("list sources for redis tool registration: %w", err)
+	}
+
+	for _, s := range sources {
+		if s.Kind != domain.KindRedis {
+			continue
+		}
+		if err := r.registerRedisToolsForSource(ctx, mcpServer, s.ID, s.ReadOnly); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// registerRedisToolsForSource registers the 6 Redis tools for one source.
+func (r *ToolRegistry) registerRedisToolsForSource(ctx context.Context, mcpServer *server.MCPServer, sourceID string, readOnly bool) error {
 	note := readOnlyNote(readOnly)
 
 	get := tools.NewTool("redis_get_"+sourceID,

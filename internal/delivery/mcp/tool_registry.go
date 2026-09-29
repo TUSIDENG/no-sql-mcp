@@ -35,6 +35,9 @@ func (r *ToolRegistry) Register(ctx context.Context, mcpServer *server.MCPServer
 	if err := r.registerESTools(ctx, mcpServer); err != nil {
 		return err
 	}
+	if err := r.registerRedisTools(ctx, mcpServer); err != nil {
+		return err
+	}
 	return nil
 }
 
