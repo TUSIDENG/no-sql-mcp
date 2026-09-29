@@ -10,7 +10,7 @@ import (
 	"github.com/FreePeak/cortex/pkg/server"
 	"github.com/FreePeak/cortex/pkg/tools"
 
-	"github.com/no-sql-mcp/server/internal/usecase"
+	"github.com/TUSIDENG/no-sql-mcp/internal/usecase"
 )
 
 // ToolRegistry builds and registers MCP tools on a cortex server.

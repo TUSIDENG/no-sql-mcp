@@ -14,7 +14,7 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/no-sql-mcp/server/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
 )
 
 // universalCmd is the command surface shared by single-node and cluster

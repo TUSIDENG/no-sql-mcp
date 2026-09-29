@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/no-sql-mcp/server/internal/config"
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // Factory builds a concrete DataSource from its configuration. Concrete client

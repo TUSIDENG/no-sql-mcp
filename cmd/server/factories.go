@@ -3,12 +3,12 @@ package main
 import (
 	"log"
 
-	"github.com/no-sql-mcp/server/internal/adapter"
-	"github.com/no-sql-mcp/server/internal/config"
-	"github.com/no-sql-mcp/server/internal/domain"
-	"github.com/no-sql-mcp/server/pkg/clients"
-	"github.com/no-sql-mcp/server/pkg/clients/es"
-	redisclient "github.com/no-sql-mcp/server/pkg/clients/redis"
+	"github.com/TUSIDENG/no-sql-mcp/internal/adapter"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/pkg/clients"
+	"github.com/TUSIDENG/no-sql-mcp/pkg/clients/es"
+	redisclient "github.com/TUSIDENG/no-sql-mcp/pkg/clients/redis"
 )
 
 // registeredFactories returns the client factories available in this build.

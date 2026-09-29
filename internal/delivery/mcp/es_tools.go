@@ -10,7 +10,7 @@ import (
 	"github.com/FreePeak/cortex/pkg/server"
 	"github.com/FreePeak/cortex/pkg/tools"
 
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // esTool describes one Elasticsearch tool family generated per source.

@@ -9,11 +9,11 @@ import (
 
 	"github.com/FreePeak/cortex/pkg/server"
 
-	"github.com/no-sql-mcp/server/internal/config"
-	"github.com/no-sql-mcp/server/internal/delivery/mcp"
-	"github.com/no-sql-mcp/server/internal/repository"
-	"github.com/no-sql-mcp/server/internal/usecase"
-	"github.com/no-sql-mcp/server/pkg/clients"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/delivery/mcp"
+	"github.com/TUSIDENG/no-sql-mcp/internal/repository"
+	"github.com/TUSIDENG/no-sql-mcp/internal/usecase"
+	"github.com/TUSIDENG/no-sql-mcp/pkg/clients"
 )
 
 func main() {

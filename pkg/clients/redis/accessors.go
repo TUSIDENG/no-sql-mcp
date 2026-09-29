@@ -5,7 +5,7 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/no-sql-mcp/server/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
 )
 
 // Cmd returns the underlying command interface.

@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/no-sql-mcp/server/internal/domain"
-	"github.com/no-sql-mcp/server/pkg/clients/es"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/pkg/clients/es"
 )
 
 // ESAdapter adapts an Elasticsearch connection to domain.Searchable. Version

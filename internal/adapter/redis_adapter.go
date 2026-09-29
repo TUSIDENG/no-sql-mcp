@@ -9,9 +9,9 @@ import (
 
 	goredis "github.com/redis/go-redis/v9"
 
-	"github.com/no-sql-mcp/server/internal/config"
-	"github.com/no-sql-mcp/server/internal/domain"
-	redisclient "github.com/no-sql-mcp/server/pkg/clients/redis"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
+	redisclient "github.com/TUSIDENG/no-sql-mcp/pkg/clients/redis"
 )
 
 // RedisAdapter adapts the Redis client to domain.DataSource and domain.KVStore.

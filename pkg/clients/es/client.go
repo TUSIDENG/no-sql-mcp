@@ -19,7 +19,7 @@ import (
 	v7 "github.com/elastic/go-elasticsearch/v7"
 	v8 "github.com/elastic/go-elasticsearch/v8"
 
-	"github.com/no-sql-mcp/server/internal/config"
+	"github.com/TUSIDENG/no-sql-mcp/internal/config"
 )
 
 // nodeDiscoveryInterval is how often a cluster client refreshes the node list

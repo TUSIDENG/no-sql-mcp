@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // ESLimitProvider exposes per-source limits without coupling the usecase to

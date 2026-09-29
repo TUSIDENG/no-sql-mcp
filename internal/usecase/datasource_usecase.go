@@ -3,7 +3,7 @@ package usecase
 import (
 	"fmt"
 
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // SourceSummary is the safe, credential-free view of a source returned to AI

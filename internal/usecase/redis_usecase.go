@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // RedisUseCase implements Redis tool business logic. Every operation resolves

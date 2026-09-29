@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // Operation identifies a guarded operation in source-agnostic terms.

@@ -1,4 +1,4 @@
-module github.com/no-sql-mcp/server
+module github.com/TUSIDENG/no-sql-mcp
 
 go 1.24
 

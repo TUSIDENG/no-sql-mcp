@@ -3,8 +3,8 @@
 package repository
 
 import (
-	"github.com/no-sql-mcp/server/internal/domain"
-	"github.com/no-sql-mcp/server/pkg/clients"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/pkg/clients"
 )
 
 // DataSourceRepository resolves sources through the clients Manager.

@@ -11,7 +11,7 @@ import (
 	"github.com/FreePeak/cortex/pkg/tools"
 	"github.com/FreePeak/cortex/pkg/types"
 
-	"github.com/no-sql-mcp/server/internal/domain"
+	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 )
 
 // redisToolCount is the number of tools registered per Redis source.
