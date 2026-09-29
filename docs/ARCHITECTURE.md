@@ -520,7 +520,7 @@ Client → kafka_consume_events: {topic, partition, offset, max_messages}
 
 - Go 1.23+；cortex v1.x（与 db-mcp-server 同版本，保证工具注册 API 一致）
 - ES 同时依赖 `go-elasticsearch/v7` 与 `v8`，支持 7.17.x / 8.x（版本自动探测，见 7.1）
-- 传输：stdio（本地 AI 客户端）、sse、streamable HTTP（远程 + API Key 鉴权）
+- 传输：stdio（本地 AI 客户端）、sse（当前可用的远程传输，属 legacy）、streamable HTTP（MCP 2025-03-26 起的推荐远程传输，依赖上游 cortex，规划在 M6，见第十三节）
 - 日志：zap 结构化；stdio 模式只写 stderr/文件，不污染 stdout
 - 可观测：`/health` 端点（源数量、各源连通状态、uptime）
 - 构建产物：单一二进制 + Docker 镜像；提供 docker-compose 一键拉起 ES/Redis/Kafka 测试环境
@@ -536,5 +536,31 @@ Client → kafka_consume_events: {topic, partition, offset, max_messages}
 | M3 ES | search/get/indices/mapping/cluster + 只读白名单 + 集成测 |
 | M4 Kafka | topics/groups/consume/produce + 有界消费 + 集成测 |
 | M5 护栏完善 | 审计、脱敏、限流、截断、统一工具模式、`/health`、Docker 发布 |
+| M6 Streamable HTTP | 实现 MCP 2025-03-26 规范的 Streamable HTTP 传输，替代被弃用的独立 HTTP+SSE |
 
 > 建议按 M1→M2→M3→M4 顺序：Redis 协议最简单，可最先打通"注册→分发→适配→返回"整条链路并固化模式，再复制到 ES、Kafka。
+
+### M6：Streamable HTTP 传输
+
+**背景与现状**
+
+- MCP 规范在 **2025-03-26** 版本中已用单端点的 **Streamable HTTP** 取代独立的 HTTP+SSE 传输，旧 SSE 属于被弃用的遗留传输。
+- 本项目依赖的 [FreePeak/cortex](https://github.com/FreePeak/cortex) 框架截至 **v1.1.0**（2025-05-15）仅提供 legacy SSE（`/sse` + `/message` 两端点），**尚未实现 Streamable HTTP**。因此在框架支持落地前，本项目的远程传输只能继续使用 SSE。
+
+**目标**
+
+- 提供符合 MCP 2025-03-26 规范的 Streamable HTTP 传输：单一 `/mcp` 端点，支持普通 JSON 请求/响应与可选的 SSE 流式响应、会话管理（`Mcp-Session-Id`）、可配置的鉴权。
+- 与既有 `stdio` / SSE 共存；SSE 仅保留为向后兼容，不再作为推荐传输。
+
+**推进方式（依赖上游）**
+
+1. 优先向 cortex 维护者提交 Streamable HTTP 的 feature request，跟踪上游实现；
+2. 或直接向 cortex 贡献 Streamable HTTP 传输实现（单端点、流式响应、会话管理），合入后升级依赖；
+3. 若上游长期无响应，评估在 `internal/delivery/mcp` 内自建 Streamable HTTP handler 作为兜底，尽量不侵入业务层。
+
+**交付内容**
+
+- 新增 `--transport streamable`（或 `http`）启动模式与默认监听地址配置；
+- Streamable HTTP 端点、会话与流式响应、API Key 鉴权复用第八节护栏；
+- 更新客户端配置文档与示例，SSE 标注为 legacy；
+- 为传输层补充单元测试与基于真实 HTTP 客户端的集成测试。
