@@ -49,10 +49,11 @@ func main() {
 	sourceUC := usecase.NewDataSourceUseCase(repo)
 	redisUC := usecase.NewRedisUseCase(repo, guard)
 	esUC := usecase.NewESUseCase(guard)
+	kafkaUC := usecase.NewKafkaUseCase(repo, guard)
 
 	mcpServer := server.NewMCPServer("NoSQL MCP Server", "0.1.0", logger)
 
-	registry := mcp.NewToolRegistry(logger, sourceUC, esUC, redisUC)
+	registry := mcp.NewToolRegistry(logger, sourceUC, esUC, redisUC, kafkaUC)
 	if err := registry.Register(context.Background(), mcpServer); err != nil {
 		logger.Fatalf("register tools: %v", err)
 	}

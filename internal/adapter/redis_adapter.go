@@ -16,10 +16,10 @@ import (
 
 // RedisAdapter adapts the Redis client to domain.DataSource and domain.KVStore.
 type RedisAdapter struct {
-	id        string
-	readOnly  bool
-	timeout   time.Duration
-	client    *redisclient.Client
+	id       string
+	readOnly bool
+	timeout  time.Duration
+	client   *redisclient.Client
 }
 
 // NewRedisAdapter wraps an unconnected Redis client.
@@ -34,11 +34,11 @@ func NewRedisAdapter(cfg config.SourceConfig, client *redisclient.Client) *Redis
 
 // --- domain.DataSource ---
 
-func (a *RedisAdapter) ID() string                 { return a.id }
-func (a *RedisAdapter) Kind() domain.Kind          { return domain.KindRedis }
-func (a *RedisAdapter) Connect() error             { return nil }
-func (a *RedisAdapter) Close() error               { return a.client.Close() }
-func (a *RedisAdapter) IsReadOnly() bool           { return a.readOnly }
+func (a *RedisAdapter) ID() string        { return a.id }
+func (a *RedisAdapter) Kind() domain.Kind { return domain.KindRedis }
+func (a *RedisAdapter) Connect() error    { return nil }
+func (a *RedisAdapter) Close() error      { return a.client.Close() }
+func (a *RedisAdapter) IsReadOnly() bool  { return a.readOnly }
 
 func (a *RedisAdapter) Ping(ctx context.Context) error {
 	return a.client.Ping(ctx)

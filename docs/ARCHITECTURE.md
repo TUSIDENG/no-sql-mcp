@@ -286,14 +286,37 @@ type Message struct {
 
 | 工具 | 作用 | 只读 |
 | --- | --- | --- |
-| `kafka_topics_<id>` | 列出 topic 及分区/副本信息 | 是 |
-| `kafka_topic_detail_<id>` | 单 topic 的分区、leader、ISR、起止 offset | 是 |
-| `kafka_groups_<id>` | 列出消费组及 lag 概况 | 是 |
-| `kafka_consume_<id>` | 按 topic/partition/offset 或 group 拉取消息（有界） | 是* |
-| `kafka_produce_<id>` | 发送消息（只读模式禁用） | 否 |
-| `kafka_cluster_<id>` | broker 列表、controller、集群概况 | 是 |
+| `kafka_topics_<id>` | 列出全部 topic 及分区数、副本数 | 是 |
+| `kafka_topic_detail_<id>` | 单 topic 的分区、leader、ISR、earliest/latest offset（参数 `topic`，必填） | 是 |
+| `kafka_groups_<id>` | 列出全部消费组及每组总 lag | 是 |
+| `kafka_consume_<id>` | 按 topic/partition/offset 或 group 有界拉取消息 | 是* |
+| `kafka_produce_<id>` | 发送单条消息（只读源禁用） | 否 |
+| `kafka_cluster_<id>` | broker 列表与当前 controller | 是 |
 
-> *`kafka_consume` 不改变 broker 数据，但当传入 `group` 时会推进消费位点。默认实现走**不提交位点**的临时读取；只有显式 `commit=true` 才提交，且该选项在只读模式下禁用。
+`kafka_consume_<id>` 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `topic` | 主题名；省略时用源 `default_topic` |
+| `group` | 消费组 id；传入后使用消费组均衡 |
+| `partition` | 无 group 时读取的分区，默认 0 |
+| `offset` | 无 group 时的起始位点：`-2` 最早、`-1` 最新（默认）、或绝对位点；group 模式默认 `-2` |
+| `max_messages` | 返回消息上限，受源 `max_messages` 限制 |
+| `timeout_ms` | 收集消息的最长耗时 |
+| `commit` | 是否提交消费组位点；只读源禁用 |
+
+`kafka_produce_<id>` 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `value` | 消息内容（必填） |
+| `topic` | 主题名；省略时用源 `default_topic` |
+| `key` | 可选消息 key |
+| `partition` | 指定分区；`-1`（默认）按轮询自动选择 |
+| `headers` | 可选消息头，字符串键值 JSON 对象 |
+
+> *`kafka_consume` 不改变 broker 数据，但当传入 `group` 时会推进消费位点。默认实现走**不提交位点**的临时读取（`CommitInterval=0`，仅显式提交才生效）；只有显式 `commit=true` 才提交，且该选项在只读模式下禁用。
+
 
 ### 6.4 全局工具
 

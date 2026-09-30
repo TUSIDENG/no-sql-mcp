@@ -20,9 +20,9 @@ type SearchResult struct {
 
 // IndexInput is the input of a single document write.
 type IndexInput struct {
-	Index     string
-	DocID     string // empty means auto-generated id
-	Document  map[string]any
+	Index    string
+	DocID    string // empty means auto-generated id
+	Document map[string]any
 }
 
 // BulkItem is one item of a bulk request.
@@ -45,18 +45,18 @@ type BulkResult struct {
 
 // IndexInfo describes an Elasticsearch index.
 type IndexInfo struct {
-	Name     string
-	Docs     int64
+	Name      string
+	Docs      int64
 	StoreSize string
-	Health   string
+	Health    string
 }
 
 // ClusterHealth summarizes Elasticsearch cluster health.
 type ClusterHealth struct {
-	Status        string // green | yellow | red
-	NodeCount     int
-	IndexCount    int
-	ActiveShards  int
+	Status       string // green | yellow | red
+	NodeCount    int
+	IndexCount   int
+	ActiveShards int
 }
 
 // RedisValue wraps a Redis value together with its type and TTL.
@@ -112,6 +112,7 @@ type ProduceInput struct {
 
 // ProduceResult is the result of a produce operation.
 type ProduceResult struct {
+	Topic     string
 	Partition int
 	Offset    int64
 }

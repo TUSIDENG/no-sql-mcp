@@ -58,33 +58,33 @@ type MaskingRule struct {
 
 // SourceConfig is the configuration of a single data source.
 type SourceConfig struct {
-	ID          string        `json:"id"`
-	Type        SourceType    `json:"type"`
-	Version     ESVersion     `json:"version,omitempty"`
-	DeploymentMode DeploymentMode `json:"deployment_mode,omitempty"`
-	Addresses   []string      `json:"addresses,omitempty"`
-	Brokers     []string      `json:"brokers,omitempty"`
-	Username    string        `json:"username,omitempty"`
-	Password    string        `json:"password,omitempty"`
-	APIKey      string        `json:"api_key,omitempty"`
-	CloudID     string        `json:"cloud_id,omitempty"`
-	DB          int           `json:"db,omitempty"`
-	Mode        RedisMode     `json:"mode,omitempty"`
-	DefaultIndex string       `json:"default_index,omitempty"`
-	DefaultTopic string       `json:"default_topic,omitempty"`
-	ReadOnly    bool          `json:"read_only"`
-	MaxDocs     int           `json:"max_docs,omitempty"`
-	MaxKeys     int           `json:"max_keys,omitempty"`
-	MaxMessages int           `json:"max_messages,omitempty"`
-	SkipTLSVerify bool        `json:"skip_tls_verify,omitempty"`
-	TLSEnabled  bool          `json:"tls_enabled,omitempty"`
-	CACert      string        `json:"ca_cert,omitempty"`
-	SASLMechanism string      `json:"sasl_mechanism,omitempty"`
-	QueryTimeout     int      `json:"query_timeout,omitempty"`
-	CommandTimeout   int      `json:"command_timeout,omitempty"`
-	OperationTimeout int      `json:"operation_timeout,omitempty"`
-	MaskingRules []MaskingRule `json:"masking_rules,omitempty"`
-	Description  string        `json:"description,omitempty"`
+	ID               string         `json:"id"`
+	Type             SourceType     `json:"type"`
+	Version          ESVersion      `json:"version,omitempty"`
+	DeploymentMode   DeploymentMode `json:"deployment_mode,omitempty"`
+	Addresses        []string       `json:"addresses,omitempty"`
+	Brokers          []string       `json:"brokers,omitempty"`
+	Username         string         `json:"username,omitempty"`
+	Password         string         `json:"password,omitempty"`
+	APIKey           string         `json:"api_key,omitempty"`
+	CloudID          string         `json:"cloud_id,omitempty"`
+	DB               int            `json:"db,omitempty"`
+	Mode             RedisMode      `json:"mode,omitempty"`
+	DefaultIndex     string         `json:"default_index,omitempty"`
+	DefaultTopic     string         `json:"default_topic,omitempty"`
+	ReadOnly         bool           `json:"read_only"`
+	MaxDocs          int            `json:"max_docs,omitempty"`
+	MaxKeys          int            `json:"max_keys,omitempty"`
+	MaxMessages      int            `json:"max_messages,omitempty"`
+	SkipTLSVerify    bool           `json:"skip_tls_verify,omitempty"`
+	TLSEnabled       bool           `json:"tls_enabled,omitempty"`
+	CACert           string         `json:"ca_cert,omitempty"`
+	SASLMechanism    string         `json:"sasl_mechanism,omitempty"`
+	QueryTimeout     int            `json:"query_timeout,omitempty"`
+	CommandTimeout   int            `json:"command_timeout,omitempty"`
+	OperationTimeout int            `json:"operation_timeout,omitempty"`
+	MaskingRules     []MaskingRule  `json:"masking_rules,omitempty"`
+	Description      string         `json:"description,omitempty"`
 }
 
 // Config is the root configuration object.
@@ -174,8 +174,8 @@ func (c *Config) validate(configDir string) error {
 				return fmt.Errorf("source %q: %w", s.ID, err)
 			}
 		case TypeKafka:
-			if len(s.Brokers) == 0 {
-				return fmt.Errorf("source %q: brokers must not be empty", s.ID)
+			if err := validateKafka(s); err != nil {
+				return fmt.Errorf("source %q: %w", s.ID, err)
 			}
 		default:
 			return fmt.Errorf("source %q: unsupported type %q", s.ID, s.Type)
@@ -198,6 +198,25 @@ func (c *Config) validate(configDir string) error {
 		}
 	}
 
+	return nil
+}
+
+func validateKafka(s *SourceConfig) error {
+	if len(s.Brokers) == 0 {
+		return fmt.Errorf("brokers must not be empty")
+	}
+	switch s.DeploymentMode {
+	case ModeSingle:
+		if len(s.Brokers) != 1 {
+			return fmt.Errorf("deployment_mode %q requires exactly one broker, got %d", ModeSingle, len(s.Brokers))
+		}
+	case ModeCluster:
+		// One or more bootstrap brokers are accepted; discovery adds the rest.
+	case "":
+		return fmt.Errorf("deployment_mode must be %q or %q", ModeSingle, ModeCluster)
+	default:
+		return fmt.Errorf("invalid deployment_mode %q (allowed: single, cluster)", s.DeploymentMode)
+	}
 	return nil
 }
 

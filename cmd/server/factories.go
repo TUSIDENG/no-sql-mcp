@@ -8,20 +8,18 @@ import (
 	"github.com/TUSIDENG/no-sql-mcp/internal/domain"
 	"github.com/TUSIDENG/no-sql-mcp/pkg/clients"
 	"github.com/TUSIDENG/no-sql-mcp/pkg/clients/es"
+	kafkaclient "github.com/TUSIDENG/no-sql-mcp/pkg/clients/kafka"
 	redisclient "github.com/TUSIDENG/no-sql-mcp/pkg/clients/redis"
 )
 
 // registeredFactories returns the client factories available in this build.
-// The Kafka factory is introduced in a later milestone.
 func registeredFactories(logger *log.Logger) map[config.SourceType]clients.Factory {
 	return map[config.SourceType]clients.Factory{
 		config.TypeElasticsearch: func(cfg config.SourceConfig) (domain.DataSource, error) {
 			return newESSource(cfg, logger)
 		},
 		config.TypeRedis: newRedisSource,
-		config.TypeKafka: func(cfg config.SourceConfig) (domain.DataSource, error) {
-			return nil, errNotImplemented("kafka")
-		},
+		config.TypeKafka: newKafkaSource,
 	}
 }
 
@@ -44,10 +42,12 @@ func newRedisSource(cfg config.SourceConfig) (domain.DataSource, error) {
 	return adapter.NewRedisAdapter(cfg, client), nil
 }
 
-type notImplementedError struct{ kind string }
-
-func (e *notImplementedError) Error() string {
-	return "client for " + e.kind + " is not implemented yet"
+// newKafkaSource builds the Kafka client and wraps it in the adapter. Both
+// single-broker and cluster deployments are handled by the same client.
+func newKafkaSource(cfg config.SourceConfig) (domain.DataSource, error) {
+	client, err := kafkaclient.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return adapter.NewKafkaAdapter(cfg, client), nil
 }
-
-func errNotImplemented(kind string) error { return &notImplementedError{kind: kind} }

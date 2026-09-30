@@ -16,12 +16,12 @@ type Factory func(cfg config.SourceConfig) (domain.DataSource, error)
 
 // Manager indexes data source clients and their configurations by id.
 type Manager struct {
-	mu           sync.RWMutex
-	sources      map[string]domain.DataSource
-	configs      map[string]config.SourceConfig
-	kinds        map[string]domain.Kind
-	factories    map[config.SourceType]Factory
-	lazyLoading  bool
+	mu          sync.RWMutex
+	sources     map[string]domain.DataSource
+	configs     map[string]config.SourceConfig
+	kinds       map[string]domain.Kind
+	factories   map[config.SourceType]Factory
+	lazyLoading bool
 }
 
 // NewManager creates a Manager for the given source configurations.

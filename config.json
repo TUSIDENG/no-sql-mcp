@@ -28,6 +28,7 @@
     {
       "id": "events_kafka_local",
       "type": "kafka",
+      "deployment_mode": "single",
       "brokers": ["localhost:9092"],
       "read_only": true,
       "max_messages": 100,

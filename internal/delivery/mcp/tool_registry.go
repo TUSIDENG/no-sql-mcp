@@ -19,11 +19,12 @@ type ToolRegistry struct {
 	sourceUC *usecase.DataSourceUseCase
 	esUC     *usecase.ESUseCase
 	redisUC  *usecase.RedisUseCase
+	kafkaUC  *usecase.KafkaUseCase
 }
 
 // NewToolRegistry creates a ToolRegistry.
-func NewToolRegistry(logger *log.Logger, sourceUC *usecase.DataSourceUseCase, esUC *usecase.ESUseCase, redisUC *usecase.RedisUseCase) *ToolRegistry {
-	return &ToolRegistry{logger: logger, sourceUC: sourceUC, esUC: esUC, redisUC: redisUC}
+func NewToolRegistry(logger *log.Logger, sourceUC *usecase.DataSourceUseCase, esUC *usecase.ESUseCase, redisUC *usecase.RedisUseCase, kafkaUC *usecase.KafkaUseCase) *ToolRegistry {
+	return &ToolRegistry{logger: logger, sourceUC: sourceUC, esUC: esUC, redisUC: redisUC, kafkaUC: kafkaUC}
 }
 
 // Register registers the global and per-source tools on the given cortex
@@ -36,6 +37,9 @@ func (r *ToolRegistry) Register(ctx context.Context, mcpServer *server.MCPServer
 		return err
 	}
 	if err := r.registerRedisTools(ctx, mcpServer); err != nil {
+		return err
+	}
+	if err := r.registerKafkaTools(ctx, mcpServer); err != nil {
 		return err
 	}
 	return nil

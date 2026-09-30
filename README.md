@@ -2,10 +2,11 @@
 
 A multi-NoSQL data source [MCP (Model Context Protocol)](https://modelcontextprotocol.io/)
 server written in Go, built on [FreePeak/cortex](https://github.com/FreePeak/cortex).
-It exposes Elasticsearch and Redis through a unified MCP interface so any
-MCP-aware AI client (Trae, Cursor, Claude Desktop, and similar tools) can
-query documents, inspect cache data, and check cluster health using natural
-language — without writing a client or logging into the data stores.
+It exposes Elasticsearch, Redis and Kafka through a unified MCP interface so
+any MCP-aware AI client (Trae, Cursor, Claude Desktop, and similar tools) can
+query documents, inspect cache data, produce and consume event streams, and
+check cluster health using natural language — without writing a client or
+logging into the data stores.
 
 ## What this project actually does for you
 
@@ -26,11 +27,16 @@ the right tool, returns the result, and explains it.
   read index mappings, so you can learn an unfamiliar system by asking.
 - **Verify fixes end to end.** After deploying, ask the AI to confirm a
   document exists or a cache key was updated — no throwaway scripts.
-- **Write test data when needed.** Index/update documents or run whitelisted
-  Redis write commands (SET/HSET/LPUSH...) against non-read-only sources.
+- **Write test data when needed.** Index/update documents, run whitelisted
+  Redis write commands (SET/HSET/LPUSH...) or produce Kafka messages against
+  non-read-only sources.
+- **Inspect event streams without the CLI.** List Kafka topics and consumer
+  groups, inspect partitions, leaders, ISRs and offsets, and run bounded
+  consumes by partition/offset or consumer group.
 - **One config, many data sources.** Point a single server at local, test
   and production instances; tools are generated per source (`es_search_<id>`,
-  `redis_get_<id>`), so the AI never guesses which store you mean.
+  `redis_get_<id>`, `kafka_consume_<id>`), so the AI never guesses which
+  store you mean.
 
 ### For operations / SRE
 
@@ -54,8 +60,8 @@ the right tool, returns the result, and explains it.
   or `.env` via `${VAR}` placeholders and are never returned to the AI
   client; `list_sources` exposes only IDs, kinds and read-only flags.
 - **Local staging that mirrors production.** Docker Compose files provide
-  both single-instance and clustered Elasticsearch/Redis stacks for testing
-  failover and cluster behavior before touching real environments.
+  both single-instance and clustered Elasticsearch/Redis/Kafka stacks for
+  testing failover and cluster behavior before touching real environments.
 
 ## Supported data sources
 
@@ -63,7 +69,7 @@ the right tool, returns the result, and explains it.
 | --- | --- | --- |
 | Elasticsearch 7.17.x / 8.x | Implemented | Client is selected by version auto-detection at connect time |
 | Redis 6.x / 7.x (single instance and cluster) | Implemented | Standalone and Redis Cluster deployments |
-| Kafka | Planned | Configuration schema reserved; client factory is not implemented yet |
+| Kafka 3.x (KRaft) | Implemented | Single broker and multi-broker cluster bootstrap; SASL (PLAIN/SCRAM) and TLS |
 
 ## Exposed tools
 
@@ -85,6 +91,16 @@ Tools are generated per configured data source, suffixed with the source ID.
 | `redis_data_<id>` | Read structured data via HGETALL/LRANGE/SMEMBERS/ZRANGE/XRANGE | Yes |
 | `redis_set_<id>` | Write via whitelisted commands such as SET/HSET/LPUSH | No |
 | `redis_info_<id>` | Server INFO output, optionally by section | Yes |
+| `kafka_topics_<id>` | List topics with partition and replica counts | Yes |
+| `kafka_topic_detail_<id>` | Partitions, leaders, ISRs and earliest/latest offsets | Yes |
+| `kafka_groups_<id>` | List consumer groups with total lag | Yes |
+| `kafka_consume_<id>` | Bounded consume by partition/offset or group (offset not committed unless `commit=true`) | Yes* |
+| `kafka_produce_<id>` | Send a single message | No |
+| `kafka_cluster_<id>` | Broker list and current controller | Yes |
+
+> \*`kafka_consume_<id>` never modifies broker data, but a group consume can
+> advance the committed offset. By default offsets are not committed; pass
+> `commit=true` to commit, which is rejected on read-only sources.
 
 ## Quick start
 
@@ -180,8 +196,8 @@ Two Compose stacks are provided and must not run simultaneously (they share
 host ports):
 
 - `docker-compose.yml`: single-instance Elasticsearch, Redis and Kafka.
-- `docker-compose.cluster.yml`: 3-node Elasticsearch plus a 6-node Redis
-  Cluster.
+- `docker-compose.cluster.yml`: 3-node Elasticsearch, a 6-node Redis Cluster
+  and a 3-broker Kafka cluster.
 
 ```powershell
 # Single-instance stack

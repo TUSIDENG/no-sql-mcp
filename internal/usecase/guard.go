@@ -11,9 +11,9 @@ import (
 
 // Operation identifies a guarded operation in source-agnostic terms.
 type Operation struct {
-	Kind   domain.Kind
-	Name   string // operation/endpoint/command name, e.g. "search", "SET"
-	Write  bool   // whether the operation mutates data
+	Kind  domain.Kind
+	Name  string // operation/endpoint/command name, e.g. "search", "SET"
+	Write bool   // whether the operation mutates data
 }
 
 // Guard enforces read-only operation whitelists and the dangerous-command
@@ -54,10 +54,26 @@ func isKnown(op Operation) bool {
 	switch op.Kind {
 	case domain.KindES:
 		return esAllowedOps[op.Name]
+	case domain.KindKafka:
+		return kafkaAllowedOps[op.Name]
 	default:
-		// Redis and Kafka whitelists are introduced with their milestones.
+		// Redis commands carry their own classification table.
 		return true
 	}
+}
+
+// kafkaAllowedOps is the Kafka application-layer whitelist. Metadata reads
+// and non-committing consumes are allowed; produce and offset commits are
+// classified as writes and blocked on read-only sources.
+var kafkaAllowedOps = map[string]bool{
+	"list_topics":    true,
+	"topic_detail":   true,
+	"list_groups":    true,
+	"group_offsets":  true,
+	"cluster_info":   true,
+	"produce":        true,
+	"consume":        true,
+	"consume_commit": true,
 }
 
 // esAllowedOps is the Elasticsearch application-layer whitelist. Only these
@@ -71,6 +87,18 @@ var esAllowedOps = map[string]bool{
 	"list_indices":   true,
 	"mapping":        true,
 	"cluster_health": true,
+}
+
+// CheckKafkaOperation validates a Kafka operation against the whitelist, the
+// read-only flag and the dangerous-operation blacklist. A consume that commits
+// its group offset is treated as a write and blocked on a read-only source.
+func (g *Guard) CheckKafkaOperation(src domain.DataSource, operation string, commit bool) error {
+	name := strings.ToLower(strings.TrimSpace(operation))
+	if commit && name == "consume" {
+		name = "consume_commit"
+	}
+	write := name == "produce" || name == "consume_commit"
+	return g.Check(src, Operation{Kind: domain.KindKafka, Name: name, Write: write})
 }
 
 // CheckRedisCommand validates a raw Redis command against the read
