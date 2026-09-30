@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
@@ -138,17 +139,18 @@ func (a *RedisAdapter) Keys(ctx context.Context, pattern string, limit int) ([]s
 	}
 
 	seen := make(map[string]struct{})
+	var mu sync.Mutex
 
 	switch c := a.client.Raw().(type) {
 	case *goredis.ClusterClient:
 		err := c.ForEachMaster(ctx, func(ctx context.Context, shard *goredis.Client) error {
-			return scanShard(ctx, shard, pattern, limit, seen)
+			return scanShard(ctx, shard, pattern, limit, seen, &mu)
 		})
 		if err != nil {
 			return nil, err
 		}
 	case *goredis.Client:
-		if err := scanShard(ctx, c, pattern, limit, seen); err != nil {
+		if err := scanShard(ctx, c, pattern, limit, seen, &mu); err != nil {
 			return nil, err
 		}
 	default:
@@ -165,18 +167,21 @@ func (a *RedisAdapter) Keys(ctx context.Context, pattern string, limit int) ([]s
 	return out, nil
 }
 
-func scanShard(ctx context.Context, shard *goredis.Client, pattern string, limit int, seen map[string]struct{}) error {
+func scanShard(ctx context.Context, shard *goredis.Client, pattern string, limit int, seen map[string]struct{}, mu *sync.Mutex) error {
 	var cursor uint64
 	for {
 		keys, next, err := shard.Scan(ctx, cursor, pattern, int64(limit)).Result()
 		if err != nil {
 			return err
 		}
+		mu.Lock()
 		for _, k := range keys {
 			seen[k] = struct{}{}
 		}
+		reached := len(seen) >= limit
+		mu.Unlock()
 		cursor = next
-		if cursor == 0 || len(seen) >= limit {
+		if cursor == 0 || reached {
 			return nil
 		}
 	}

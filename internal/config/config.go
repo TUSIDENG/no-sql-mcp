@@ -26,7 +26,6 @@ const (
 type RedisMode string
 
 const (
-	RedisModeAuto    RedisMode = "auto"
 	RedisModeSingle  RedisMode = "single"
 	RedisModeCluster RedisMode = "cluster"
 )
@@ -69,7 +68,6 @@ type SourceConfig struct {
 	APIKey           string         `json:"api_key,omitempty"`
 	CloudID          string         `json:"cloud_id,omitempty"`
 	DB               int            `json:"db,omitempty"`
-	Mode             RedisMode      `json:"mode,omitempty"`
 	DefaultIndex     string         `json:"default_index,omitempty"`
 	DefaultTopic     string         `json:"default_topic,omitempty"`
 	ReadOnly         bool           `json:"read_only"`
@@ -224,12 +222,17 @@ func validateRedis(s *SourceConfig) error {
 	if len(s.Addresses) == 0 {
 		return fmt.Errorf("addresses must not be empty")
 	}
-	switch s.Mode {
-	case "", RedisModeAuto, RedisModeSingle, RedisModeCluster:
-		return nil
+	switch s.DeploymentMode {
+	case ModeSingle:
+		if len(s.Addresses) != 1 {
+			return fmt.Errorf("deployment_mode %q requires exactly one address, got %d", ModeSingle, len(s.Addresses))
+		}
+	case ModeCluster:
+		// One or more seed nodes are accepted; the client discovers the rest.
 	default:
-		return fmt.Errorf("invalid redis mode %q (allowed: auto, single, cluster)", s.Mode)
+		return fmt.Errorf("deployment_mode must be %q or %q", ModeSingle, ModeCluster)
 	}
+	return nil
 }
 
 func validateES(s *SourceConfig) error {
@@ -283,9 +286,6 @@ func (c *Config) applyDefaults() {
 		}
 		if s.Version == "" {
 			s.Version = ESVersionAuto
-		}
-		if s.Type == TypeRedis && s.Mode == "" {
-			s.Mode = RedisModeAuto
 		}
 	}
 }

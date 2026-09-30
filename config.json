@@ -15,15 +15,34 @@
       "description": "Local Elasticsearch for log search"
     },
     {
-      "id": "cache_redis_local",
+      "id": "cache_redis_single_local",
       "type": "redis",
-      "addresses": ["redis://localhost:6379/0"],
+      "deployment_mode": "single",
+      "addresses": ["localhost:6379"],
       "password": "${REDIS_PASSWORD}",
       "db": 0,
       "read_only": false,
       "max_keys": 500,
       "command_timeout": 5,
-      "description": "Local Redis cache"
+      "description": "Local single-instance Redis cache"
+    },
+    {
+      "id": "cache_redis_cluster_local",
+      "type": "redis",
+      "deployment_mode": "cluster",
+      "addresses": [
+        "localhost:7000",
+        "localhost:7001",
+        "localhost:7002",
+        "localhost:7003",
+        "localhost:7004",
+        "localhost:7005"
+      ],
+      "password": "${REDIS_PASSWORD}",
+      "read_only": false,
+      "max_keys": 500,
+      "command_timeout": 5,
+      "description": "Local Redis Cluster cache"
     },
     {
       "id": "events_kafka_local",

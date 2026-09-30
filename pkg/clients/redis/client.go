@@ -3,14 +3,12 @@
 package redis
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	goredis "github.com/redis/go-redis/v9"
 
@@ -39,10 +37,10 @@ func New(cfg config.SourceConfig) (*Client, error) {
 		return nil, err
 	}
 
-	switch cfg.Mode {
-	case config.RedisModeSingle:
+	switch cfg.DeploymentMode {
+	case config.ModeSingle:
 		return &Client{cmd: goredis.NewClient(opts), mode: config.RedisModeSingle}, nil
-	case config.RedisModeCluster:
+	case config.ModeCluster:
 		addrs, err := clusterAddrs(cfg.Addresses, opts)
 		if err != nil {
 			return nil, err
@@ -51,41 +49,9 @@ func New(cfg config.SourceConfig) (*Client, error) {
 			cmd:  goredis.NewClusterClient(&goredis.ClusterOptions{Addrs: addrs, Username: opts.Username, Password: opts.Password, TLSConfig: opts.TLSConfig}),
 			mode: config.RedisModeCluster,
 		}, nil
-	case config.RedisModeAuto:
-		return probe(cfg, opts)
 	default:
-		return nil, fmt.Errorf("unknown redis mode %q", cfg.Mode)
+		return nil, fmt.Errorf("unknown redis deployment mode %q", cfg.DeploymentMode)
 	}
-}
-
-// probe detects whether the endpoints serve a Redis cluster.
-func probe(cfg config.SourceConfig, opts *goredis.Options) (*Client, error) {
-	single := goredis.NewClient(opts)
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration(cfg.CommandTimeout))
-	defer cancel()
-
-	if err := single.Ping(ctx).Err(); err != nil {
-		_ = single.Close()
-		return nil, fmt.Errorf("connect redis: %w", err)
-	}
-
-	// CLUSTER INFO returns an error on non-cluster deployments.
-	if err := single.ClusterInfo(ctx).Err(); err != nil {
-		return &Client{cmd: single, mode: config.RedisModeSingle}, nil
-	}
-
-	// Cluster confirmed: replace the single client with a cluster client.
-	addrs, err := clusterAddrs(cfg.Addresses, opts)
-	if err != nil {
-		_ = single.Close()
-		return nil, err
-	}
-	_ = single.Close()
-	return &Client{
-		cmd:  goredis.NewClusterClient(&goredis.ClusterOptions{Addrs: addrs, Username: opts.Username, Password: opts.Password, TLSConfig: opts.TLSConfig}),
-		mode: config.RedisModeCluster,
-	}, nil
 }
 
 // buildNodeOptions parses a redis:// or rediss:// URL and applies explicit
@@ -167,8 +133,4 @@ func buildTLS(cfg config.SourceConfig) *tls.Config {
 		}
 	}
 	return tlsCfg
-}
-
-func timeoutDuration(seconds int) time.Duration {
-	return time.Duration(seconds) * time.Second
 }

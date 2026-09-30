@@ -10,7 +10,16 @@
     {
       "id": "cache_redis_local",
       "type": "redis",
-      "addresses": ["redis://localhost:6379/0"],
+      "deployment_mode": "cluster",
+      "addresses": [
+        "localhost:7000",
+        "localhost:7001",
+        "localhost:7002",
+        "localhost:7003",
+        "localhost:7004",
+        "localhost:7005"
+      ],
+      "password": "${REDIS_PASSWORD}",
       "read_only": false
     },
     {

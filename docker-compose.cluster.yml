@@ -16,24 +16,32 @@ name: nosql-mcp-cluster
 
 x-redis-node: &redis-node
   image: redis:7-alpine
+  environment:
+    - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+    - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
   command:
     - sh
     - -c
     - |
+      ANNOUNCE=""
+      if [ -n "$$REDIS_CLUSTER_ANNOUNCE_IP" ]; then
+        ANNOUNCE="--cluster-announce-ip $$REDIS_CLUSTER_ANNOUNCE_IP \
+          --cluster-announce-port $$REDIS_NODE_PORT \
+          --cluster-announce-bus-port $$REDIS_BUS_PORT"
+      fi
       exec redis-server \
+        --port $$REDIS_NODE_PORT \
         --requirepass ${REDIS_PASSWORD:-changeme} \
         --masterauth ${REDIS_PASSWORD:-changeme} \
         --appendonly yes \
         --cluster-enabled yes \
         --cluster-config-file nodes.conf \
         --cluster-node-timeout 5000 \
-        --cluster-announce-ip $${REDIS_CLUSTER_ANNOUNCE_IP:-host.docker.internal} \
-        --cluster-announce-port $${REDIS_NODE_PORT} \
-        --cluster-announce-bus-port $${REDIS_BUS_PORT}
+        $$ANNOUNCE
   extra_hosts:
     - "host.docker.internal:host-gateway"
   healthcheck:
-    test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+    test: ["CMD-SHELL", "redis-cli -p $$REDIS_NODE_PORT -a \"$${REDIS_PASSWORD:-changeme}\" ping | grep -q PONG"]
     interval: 10s
     timeout: 5s
     retries: 12
@@ -119,6 +127,8 @@ services:
   redis-1:
     <<: *redis-node
     environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+      - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
       - REDIS_NODE_PORT=7000
       - REDIS_BUS_PORT=17000
     ports:
@@ -130,6 +140,8 @@ services:
   redis-2:
     <<: *redis-node
     environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+      - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
       - REDIS_NODE_PORT=7001
       - REDIS_BUS_PORT=17001
     ports:
@@ -141,6 +153,8 @@ services:
   redis-3:
     <<: *redis-node
     environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+      - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
       - REDIS_NODE_PORT=7002
       - REDIS_BUS_PORT=17002
     ports:
@@ -152,6 +166,8 @@ services:
   redis-4:
     <<: *redis-node
     environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+      - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
       - REDIS_NODE_PORT=7003
       - REDIS_BUS_PORT=17003
     ports:
@@ -163,6 +179,8 @@ services:
   redis-5:
     <<: *redis-node
     environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+      - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
       - REDIS_NODE_PORT=7004
       - REDIS_BUS_PORT=17004
     ports:
@@ -174,6 +192,8 @@ services:
   redis-6:
     <<: *redis-node
     environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
+      - REDIS_CLUSTER_ANNOUNCE_IP=${REDIS_CLUSTER_ANNOUNCE_IP:-}
       - REDIS_NODE_PORT=7005
       - REDIS_BUS_PORT=17005
     ports:
@@ -204,8 +224,7 @@ services:
       - sh
       - -c
       - |
-        HOST=${REDIS_CLUSTER_ANNOUNCE_IP:-host.docker.internal}
-        NODES="$${HOST}:7000 $${HOST}:7001 $${HOST}:7002 $${HOST}:7003 $${HOST}:7004 $${HOST}:7005"
+        NODES="redis-1:7000 redis-2:7001 redis-3:7002 redis-4:7003 redis-5:7004 redis-6:7005"
         for node in $$NODES; do
           until redis-cli -h "$${node%%:*}" -p "$${node##*:}" -a ${REDIS_PASSWORD:-changeme} ping | grep -q PONG; do
             echo "waiting for $$node"; sleep 2
