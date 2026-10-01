@@ -15,53 +15,50 @@ for your NoSQL infrastructure. Instead of context-switching between Kibana,
 `redis-cli`, SSH sessions, and ad-hoc scripts, you ask the AI and it calls
 the right tool, returns the result, and explains it.
 
-### For developers
+### Practical scenarios
 
-- **Debug production issues conversationally.** "Find the last 50 ERROR
-  logs from service `order-api` in the last hour" becomes a single question;
-  the server runs the native Elasticsearch Query DSL for you.
-- **Inspect cache contents without `redis-cli`.** Look up a key's value,
-  type and TTL, scan keys by pattern, and read hashes, lists, sets, sorted
-  sets and streams (HGETALL / LRANGE / SMEMBERS / ZRANGE / XRANGE).
-- **Understand data shape.** List indices with health/doc counts/size and
-  read index mappings, so you can learn an unfamiliar system by asking.
-- **Verify fixes end to end.** After deploying, ask the AI to confirm a
-  document exists or a cache key was updated — no throwaway scripts.
-- **Write test data when needed.** Index/update documents, run whitelisted
-  Redis write commands (SET/HSET/LPUSH...) or produce Kafka messages against
-  non-read-only sources.
-- **Inspect event streams without the CLI.** List Kafka topics and consumer
-  groups, inspect partitions, leaders, ISRs and offsets, and run bounded
-  consumes by partition/offset or consumer group.
-- **One config, many data sources.** Point a single server at local, test
-  and production instances; tools are generated per source (`es_search_<id>`,
+**Common**
+
+- **One server, many data sources.** Point it at local, test and production
+  instances; tools are generated per source (`es_search_<id>`,
   `redis_get_<id>`, `kafka_consume_<id>`), so the AI never guesses which
   store you mean.
+- **Triage and verify in one conversation.** Query logs, cache and event
+  streams, let the AI summarize findings, then confirm a fix end to end
+  without throwaway scripts.
+- **Safe against production data.** Mark sources `read_only` to reject
+  writes, authenticate with TLS, bound result sizes and timeouts, and keep
+  passwords in environment variables or `.env` via `${VAR}` so they are
+  never returned to the client (`list_sources` exposes only IDs, kinds and
+  read-only flags).
+- **Stage locally before production.** Docker Compose provides single and
+  clustered Elasticsearch/Redis/Kafka stacks for testing failover.
 
-### For operations / SRE
+**Redis**
 
-- **Fast incident triage.** Query logs and inspect cache state in one
-  conversation, then let the AI summarize findings and suggest next steps.
-- **Cluster health at a glance.** Check Elasticsearch cluster status, node
-  and shard counts, or pull Redis `INFO` sections (memory, replication,
-  persistence) without opening a shell.
-- **Safe by default for production.** Every source can be marked
-  `read_only`; write operations are then rejected before they reach the
-  store.
-- **Deny-by-default command control.** Redis commands must appear in a
-  classification table — unknown commands are rejected. Dangerous commands
-  (FLUSHALL/FLUSHDB/CONFIG/KEYS/EVAL/SHUTDOWN/...) are blocked even on
-  writable sources unless `--allow-dangerous` is explicitly passed.
-- **Production-friendly connections.** Explicit single-instance vs. cluster
-  deployment modes (multi-seed addresses with node discovery),
-  authentication and TLS support, per-source result limits, and operation
-  timeouts.
-- **No credential leakage.** Passwords are read from environment variables
-  or `.env` via `${VAR}` placeholders and are never returned to the AI
-  client; `list_sources` exposes only IDs, kinds and read-only flags.
-- **Local staging that mirrors production.** Docker Compose files provide
-  both single-instance and clustered Elasticsearch/Redis/Kafka stacks for
-  testing failover and cluster behavior before touching real environments.
+- **Work without `redis-cli`.** Read a key's value, type and TTL, scan keys
+  by pattern, read hashes/lists/sets/sorted sets/streams, and pull `INFO`
+  plus cluster slot topology.
+- **Write under guardrails.** Commands are deny-by-default: unknown commands
+  are rejected and dangerous ones (FLUSHALL/CONFIG/KEYS/EVAL/...) are
+  blocked unless `--allow-dangerous` is passed.
+
+**Elasticsearch**
+
+- **Search logs and learn data shape conversationally.** Run native Query
+  DSL ("the last 50 ERROR logs from `order-api` in the last hour"), list
+  indices with health/doc/size, and read mappings.
+- **Check cluster health at a glance.** See status, node, index and shard
+  counts; node sniffing is opt-in through `discover_nodes` for clients on
+  the cluster network.
+
+**Kafka**
+
+- **Inspect streams without the CLI.** List topics and groups, inspect
+  partitions, leaders, ISRs and offsets, and run bounded consumes.
+- **Track and test streaming.** Watch consumer group lag and committed
+  offsets, review brokers/controller and leader/ISR placement, and produce
+  messages to non-read-only sources.
 
 ## Supported data sources
 
