@@ -353,6 +353,7 @@ type Message struct {
       "password": "${ES_PASSWORD}",
       "api_key": "",
       "cloud_id": "",
+      "discover_nodes": true,
       "default_index": "app-logs-*",
       "read_only": true,
       "max_docs": 200,
@@ -400,7 +401,8 @@ type Message struct {
 字段约定：
 
 - 统一使用 `addresses`/`brokers` 数组，支持多节点；`id` 全局唯一、建议起得有语义（`<用途>_<类型>_<环境>`）
-- 必须通过 `deployment_mode` 显式区分部署形态：`single`（单实例，仅接受一个地址，关闭节点嗅探）或 `cluster`（集群，接受多个种子地址，启用节点发现）；配置 `cloud_id` 时按集群处理
+- 必须通过 `deployment_mode` 显式区分部署形态：`single`（单实例，仅接受一个地址）或 `cluster`（集群，接受多个种子地址）；配置 `cloud_id` 时按集群处理
+- ES 的节点嗅探（sniffing）默认关闭，由可选布尔字段 `discover_nodes` 显式开启：仅在客户端能路由到节点发布地址时启用（如客户端与集群同网络，或 Elastic Cloud）；容器化集群对容器外主机会发布内网地址，此时保持默认关闭、改用 `addresses` 种子列表。`discover_nodes=true` 只允许在 `cluster` 模式使用
 - ES 可选 `version` 字段：`auto`（默认，连接时探测）/`7`/`8`；见第 7.1 节
 - `${VAR}` 占位符从环境变量/`.env` 解析；密码等敏感字段不进日志、不进 `list_sources` 返回
 - 公共护栏字段：`read_only`、`max_docs/max_keys/max_messages`（各类型的结果上限）、`query_timeout`、`masking_rules`、`description`

@@ -188,6 +188,13 @@ accepts multiple seed addresses), optional auth/TLS settings, per-source
 result limits and timeouts, and an optional `read_only` flag. Sensitive
 values use `${VAR}` placeholders resolved from the environment or `.env`.
 
+For Elasticsearch, node sniffing is opt-in through `discover_nodes` (only
+valid with `cluster`). Leave it unset when the client cannot reach the
+nodes' published addresses (for example an MCP server on the host talking
+to a containerized cluster, which advertises internal IPs); the client then
+load-balances over the configured `addresses`. Enable it when the client
+shares the cluster network or when using `cloud_id`.
+
 See [config.json](config.json) for a full example.
 
 ## Local environments

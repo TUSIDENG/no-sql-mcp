@@ -185,7 +185,6 @@ func buildTransport(cfg config.SourceConfig) (http.RoundTripper, error) {
 }
 
 func (c *Client) v7Config() *v7.Config {
-	discoverNodes := c.cfg.DeploymentMode == config.ModeCluster
 	if strings.TrimSpace(c.cfg.CloudID) != "" {
 		return &v7.Config{
 			CloudID:               c.cfg.CloudID,
@@ -196,19 +195,23 @@ func (c *Client) v7Config() *v7.Config {
 			DiscoverNodesInterval: nodeDiscoveryInterval,
 		}
 	}
+	// Sniffing is opt-in: containerized servers advertise internal addresses
+	// that an external client cannot reach, so the default relies on the
+	// configured seed list, which already covers every node. Enable
+	// discover_nodes when the client can reach the nodes' published addresses
+	// (for example a client inside the same network as the cluster).
 	return &v7.Config{
 		Addresses:             c.cfg.Addresses,
 		Username:              c.cfg.Username,
 		Password:              c.cfg.Password,
 		APIKey:                c.cfg.APIKey,
 		Transport:             c.transport,
-		DiscoverNodesOnStart:  discoverNodes,
-		DiscoverNodesInterval: nodeDiscoveryInterval,
+		DiscoverNodesOnStart:  c.cfg.DiscoverNodes,
+		DiscoverNodesInterval: discoveryInterval(c.cfg.DiscoverNodes),
 	}
 }
 
 func (c *Client) v8Config() *v8.Config {
-	discoverNodes := c.cfg.DeploymentMode == config.ModeCluster
 	if strings.TrimSpace(c.cfg.CloudID) != "" {
 		return &v8.Config{
 			CloudID:               c.cfg.CloudID,
@@ -219,15 +222,25 @@ func (c *Client) v8Config() *v8.Config {
 			DiscoverNodesInterval: nodeDiscoveryInterval,
 		}
 	}
+	// See v7Config: sniffing is opt-in via discover_nodes.
 	return &v8.Config{
 		Addresses:             c.cfg.Addresses,
 		Username:              c.cfg.Username,
 		Password:              c.cfg.Password,
 		APIKey:                c.cfg.APIKey,
 		Transport:             c.transport,
-		DiscoverNodesOnStart:  discoverNodes,
-		DiscoverNodesInterval: nodeDiscoveryInterval,
+		DiscoverNodesOnStart:  c.cfg.DiscoverNodes,
+		DiscoverNodesInterval: discoveryInterval(c.cfg.DiscoverNodes),
 	}
+}
+
+// discoveryInterval returns the refresh interval for node sniffing, or zero
+// when sniffing is disabled (a zero interval disables periodic discovery).
+func discoveryInterval(enabled bool) time.Duration {
+	if !enabled {
+		return 0
+	}
+	return nodeDiscoveryInterval
 }
 
 // Ping verifies connectivity by requesting the root resource.

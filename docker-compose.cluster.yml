@@ -71,9 +71,37 @@ x-kafka-node: &kafka-node
     retries: 12
 
 services:
+  # ---------- Elasticsearch: one-shot transport certificate generation ----------
+  es-certgen:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    user: "0:0"
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        if [ -f /certs/ca.crt ]; then echo "certificates already present"; exit 0; fi
+        work=$$(mktemp -d); cd $$work
+        /usr/share/elasticsearch/bin/elasticsearch-certutil ca --pem --out $$work/ca.zip -s
+        unzip $$work/ca.zip -d $$work
+        /usr/share/elasticsearch/bin/elasticsearch-certutil cert --pem \
+          --ca-cert $$work/ca/ca.crt --ca-key $$work/ca/ca.key \
+          --out $$work/node.zip --dns es-1,es-2,es-3 -s
+        unzip $$work/node.zip -d $$work
+        cp $$work/ca/ca.crt /certs/ca.crt
+        cp $$work/instance/instance.crt /certs/node.crt
+        cp $$work/instance/instance.key /certs/node.key
+        chown -R 1000:1000 /certs
+        echo "certificates generated"
+    volumes:
+      - es-certs:/certs
+
   # ---------- Elasticsearch: 3-node cluster ----------
   es-1:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    depends_on:
+      es-certgen:
+        condition: service_completed_successfully
     environment:
       - node.name=es-1
       - cluster.name=es-cluster
@@ -81,16 +109,24 @@ services:
       - cluster.initial_master_nodes=es-1,es-2,es-3
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca.crt
+      - xpack.security.transport.ssl.certificate=certs/node.crt
+      - xpack.security.transport.ssl.key=certs/node.key
       - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9200:9200"
     volumes:
       - es-1-data:/usr/share/elasticsearch/data
+      - es-certs:/usr/share/elasticsearch/config/certs:ro
 
   es-2:
-    image: docker.elastic.co/elasticsearch/8.15.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    depends_on:
+      es-certgen:
+        condition: service_completed_successfully
     environment:
       - node.name=es-2
       - cluster.name=es-cluster
@@ -98,16 +134,24 @@ services:
       - cluster.initial_master_nodes=es-1,es-2,es-3
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca.crt
+      - xpack.security.transport.ssl.certificate=certs/node.crt
+      - xpack.security.transport.ssl.key=certs/node.key
       - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9201:9200"
     volumes:
       - es-2-data:/usr/share/elasticsearch/data
+      - es-certs:/usr/share/elasticsearch/config/certs:ro
 
   es-3:
-    image: docker.elastic.co/elasticsearch/8.15.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    depends_on:
+      es-certgen:
+        condition: service_completed_successfully
     environment:
       - node.name=es-3
       - cluster.name=es-cluster
@@ -115,13 +159,18 @@ services:
       - cluster.initial_master_nodes=es-1,es-2,es-3
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca.crt
+      - xpack.security.transport.ssl.certificate=certs/node.crt
+      - xpack.security.transport.ssl.key=certs/node.key
       - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9202:9200"
     volumes:
       - es-3-data:/usr/share/elasticsearch/data
+      - es-certs:/usr/share/elasticsearch/config/certs:ro
 
   # ---------- Redis Cluster: 3 masters + 3 replicas ----------
   redis-1:
@@ -259,6 +308,7 @@ services:
       - "9096:9092"
 
 volumes:
+  es-certs:
   es-1-data:
   es-2-data:
   es-3-data:

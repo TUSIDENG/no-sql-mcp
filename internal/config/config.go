@@ -67,6 +67,7 @@ type SourceConfig struct {
 	Password         string         `json:"password,omitempty"`
 	APIKey           string         `json:"api_key,omitempty"`
 	CloudID          string         `json:"cloud_id,omitempty"`
+	DiscoverNodes    bool           `json:"discover_nodes,omitempty"`
 	DB               int            `json:"db,omitempty"`
 	DefaultIndex     string         `json:"default_index,omitempty"`
 	DefaultTopic     string         `json:"default_topic,omitempty"`
@@ -247,6 +248,9 @@ func validateES(s *SourceConfig) error {
 		case ModeSingle:
 			if len(s.Addresses) != 1 {
 				return fmt.Errorf("deployment_mode %q requires exactly one address, got %d", ModeSingle, len(s.Addresses))
+			}
+			if s.DiscoverNodes {
+				return fmt.Errorf("discover_nodes is only valid in %q mode", ModeCluster)
 			}
 		case ModeCluster:
 			// One or more seed nodes are accepted; discovery adds the rest.

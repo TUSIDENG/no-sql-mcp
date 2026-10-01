@@ -1,7 +1,7 @@
 {
   "sources": [
     {
-      "id": "logs_es_local",
+      "id": "logs_es_single_local",
       "type": "elasticsearch",
       "version": "auto",
       "deployment_mode": "single",
@@ -12,7 +12,25 @@
       "read_only": true,
       "max_docs": 200,
       "query_timeout": 30,
-      "description": "Local Elasticsearch for log search"
+      "description": "Local single-instance Elasticsearch for log search"
+    },
+    {
+      "id": "logs_es_cluster_local",
+      "type": "elasticsearch",
+      "version": "auto",
+      "deployment_mode": "cluster",
+      "addresses": [
+        "http://localhost:9200",
+        "http://localhost:9201",
+        "http://localhost:9202"
+      ],
+      "username": "elastic",
+      "password": "${ES_PASSWORD}",
+      "default_index": "app-logs-*",
+      "read_only": true,
+      "max_docs": 200,
+      "query_timeout": 30,
+      "description": "Local Elasticsearch cluster for log search"
     },
     {
       "id": "cache_redis_single_local",
