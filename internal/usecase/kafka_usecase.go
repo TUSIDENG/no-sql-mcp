@@ -27,6 +27,24 @@ func NewKafkaUseCase(repo domain.DataSourceRepository, guard *Guard) *KafkaUseCa
 	return &KafkaUseCase{repo: repo, guard: guard}
 }
 
+// resolve validates the operation through the guard without imposing the
+// fixed operation timeout. It is used by consume, whose own bounded deadline
+// (timeout_ms) must not be capped by the shorter per-operation timeout.
+func (uc *KafkaUseCase) resolve(ctx context.Context, sourceID, operation string, commit bool) (domain.Messaging, context.CancelFunc, error) {
+	src, err := uc.repo.Get(sourceID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := uc.guard.CheckKafkaOperation(src, operation, commit); err != nil {
+		return nil, nil, err
+	}
+	broker, ok := src.(domain.Messaging)
+	if !ok {
+		return nil, nil, fmt.Errorf("source %q does not implement Messaging", sourceID)
+	}
+	return broker, func() {}, nil
+}
+
 // messaging resolves the source and validates the operation through the guard.
 func (uc *KafkaUseCase) messaging(ctx context.Context, sourceID, operation string, commit bool) (domain.Messaging, context.Context, context.CancelFunc, error) {
 	src, err := uc.repo.Get(sourceID)
@@ -148,7 +166,7 @@ func (uc *KafkaUseCase) Consume(ctx context.Context, sourceID string, in domain.
 		}
 	}
 
-	broker, ctx, cancel, err := uc.messaging(ctx, sourceID, "consume", in.Commit)
+	broker, cancel, err := uc.resolve(ctx, sourceID, "consume", in.Commit)
 	if err != nil {
 		return nil, err
 	}

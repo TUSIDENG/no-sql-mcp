@@ -63,7 +63,7 @@
       "description": "Local Redis Cluster cache"
     },
     {
-      "id": "events_kafka_local",
+      "id": "events_kafka_single_local",
       "type": "kafka",
       "deployment_mode": "single",
       "brokers": ["localhost:9092"],
@@ -71,7 +71,22 @@
       "max_messages": 100,
       "default_topic": "order.events",
       "operation_timeout": 10,
-      "description": "Local Kafka event stream"
+      "description": "Local single-instance Kafka event stream"
+    },
+    {
+      "id": "events_kafka_cluster_local",
+      "type": "kafka",
+      "deployment_mode": "cluster",
+      "brokers": [
+        "localhost:9092",
+        "localhost:9094",
+        "localhost:9096"
+      ],
+      "read_only": false,
+      "max_messages": 100,
+      "default_topic": "order.events",
+      "operation_timeout": 10,
+      "description": "Local Kafka cluster event stream"
     }
   ]
 }

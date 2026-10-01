@@ -193,6 +193,11 @@ func (a *KafkaAdapter) Produce(ctx context.Context, in domain.ProduceInput) (dom
 	}
 	if in.Partition >= 0 {
 		msg.Partition = in.Partition
+	} else {
+		// An unset partition arrives as the zero value 0, which the client
+		// would read as an explicit partition 0. Use -1 to request
+		// automatic round-robin partition selection.
+		msg.Partition = -1
 	}
 
 	sent, err := a.client.Produce(ctx, msg)
