@@ -1,16 +1,16 @@
-# Production-style stack: single-instance Elasticsearch, Redis and Kafka plus
-# the no-sql-mcp server pulled from Docker Hub.
+# Single-instance services for local development.
+# Starts one Elasticsearch node, one Redis node, and one Kafka (KRaft) broker.
 #
-# Image:   https://hub.docker.com/r/tusi/no-sql-mcp
-# Start:   docker compose up -d
-# Stop:    docker compose down
-# Cleanup: docker compose down -v
+# Start:   docker compose -f docker-compose-single.yml up -d
+# Stop:    docker compose -f docker-compose-single.yml down
+# Cleanup: docker compose -f docker-compose-single.yml down -v
 
-name: nosql-mcp
+name: nosql-mcp-single
 
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: es-single
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=true
@@ -18,8 +18,10 @@ services:
       - xpack.security.transport.ssl.enabled=false
       - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
     volumes:
-      - es-data:/usr/share/elasticsearch/data
+      - es-single-data:/usr/share/elasticsearch/data
     healthcheck:
       test:
         [
@@ -32,9 +34,13 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: redis-single
+    # requirepass keeps the endpoint aligned with REDIS_PASSWORD in config.json.
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-changeme}", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
     volumes:
-      - redis-data:/data
+      - redis-single-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 10s
@@ -43,22 +49,24 @@ services:
 
   kafka:
     image: apache/kafka:3.8.0
+    container_name: kafka-single
     environment:
+      # Single-node KRaft quorum (no ZooKeeper).
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9093
-      - KAFKA_LISTENERS=INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092,CONTROLLER://0.0.0.0:9093
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka:9092,EXTERNAL://localhost:19092
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+      - CLUSTER_ID=MkU3OEVNTcwNTJENDM2Qk
     ports:
-      - "19092:19092"
+      - "9092:9092"
     healthcheck:
       test:
         [
@@ -69,24 +77,6 @@ services:
       timeout: 5s
       retries: 12
 
-  mcp:
-    image: tusi/no-sql-mcp:latest
-    command: ["--config", "/app/config.docker.json", "--transport", "sse", "--address", ":9091", "--lazy-loading"]
-    environment:
-      - ES_PASSWORD=${ES_PASSWORD:-changeme}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-changeme}
-    volumes:
-      - ./config.docker.json:/app/config.docker.json:ro
-    ports:
-      - "9091:9091"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-
 volumes:
-  es-data:
-  redis-data:
+  es-single-data:
+  redis-single-data:

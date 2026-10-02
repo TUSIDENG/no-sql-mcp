@@ -1,0 +1,40 @@
+{
+  "sources": [
+    {
+      "id": "logs_es_local",
+      "type": "elasticsearch",
+      "version": "auto",
+      "deployment_mode": "single",
+      "addresses": ["http://elasticsearch:9200"],
+      "username": "elastic",
+      "password": "${ES_PASSWORD}",
+      "default_index": "app-logs-*",
+      "read_only": false,
+      "max_docs": 200,
+      "query_timeout": 30,
+      "description": "Docker Elasticsearch for log search"
+    },
+    {
+      "id": "cache_redis_local",
+      "type": "redis",
+      "deployment_mode": "single",
+      "addresses": ["redis:6379"],
+      "password": "${REDIS_PASSWORD}",
+      "read_only": false,
+      "max_keys": 500,
+      "command_timeout": 5,
+      "description": "Docker Redis cache"
+    },
+    {
+      "id": "events_kafka_local",
+      "type": "kafka",
+      "deployment_mode": "single",
+      "brokers": ["kafka:9092"],
+      "read_only": false,
+      "max_messages": 100,
+      "default_topic": "order.events",
+      "operation_timeout": 10,
+      "description": "Docker Kafka event stream"
+    }
+  ]
+}

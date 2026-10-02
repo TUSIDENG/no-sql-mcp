@@ -1,12 +1,10 @@
-# Production-style stack: single-instance Elasticsearch, Redis and Kafka plus
-# the no-sql-mcp server pulled from Docker Hub.
+# Test stack: single-instance Elasticsearch, Redis and Kafka plus the
+# no-sql-mcp server built from the local Dockerfile.
 #
-# Image:   https://hub.docker.com/r/tusi/no-sql-mcp
-# Start:   docker compose up -d
-# Stop:    docker compose down
-# Cleanup: docker compose down -v
+# Start: docker compose -f docker-compose-test.yml up -d --build
+# Stop:  docker compose -f docker-compose-test.yml down
 
-name: nosql-mcp
+name: nosql-mcp-test
 
 services:
   elasticsearch:
@@ -19,7 +17,7 @@ services:
       - ELASTIC_PASSWORD=${ES_PASSWORD:-changeme}
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
-      - es-data:/usr/share/elasticsearch/data
+      - es-test-data:/usr/share/elasticsearch/data
     healthcheck:
       test:
         [
@@ -34,7 +32,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-changeme}", "--appendonly", "yes"]
     volumes:
-      - redis-data:/data
+      - redis-test-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 10s
@@ -70,7 +68,9 @@ services:
       retries: 12
 
   mcp:
-    image: tusi/no-sql-mcp:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: ["--config", "/app/config.docker.json", "--transport", "sse", "--address", ":9091", "--lazy-loading"]
     environment:
       - ES_PASSWORD=${ES_PASSWORD:-changeme}
@@ -88,5 +88,5 @@ services:
         condition: service_healthy
 
 volumes:
-  es-data:
-  redis-data:
+  es-test-data:
+  redis-test-data:
