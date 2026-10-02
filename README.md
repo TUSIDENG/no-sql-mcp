@@ -8,6 +8,12 @@ query documents, inspect cache data, produce and consume event streams, and
 check cluster health using natural language — without writing a client or
 logging into the data stores.
 
+## Related projects
+
+- [FreePeak/db-mcp-server](https://github.com/FreePeak/db-mcp-server) — an
+  MCP server for SQL databases such as MySQL, PostgreSQL and Oracle,
+  complementing this project's NoSQL (Elasticsearch, Redis, Kafka) support.
+
 ## What this project actually does for you
 
 MCP turns an AI assistant into a secure, conversational operations console
